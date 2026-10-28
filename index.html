@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-title" content="Trading Tracker">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=7">
   <style>
     .topic-action{width:100%;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer;font:inherit}.topic-action:hover{background:#10263b}.topic-detail{border-top:1px solid #1b354b;margin-top:7px;padding-top:6px}.topic-detail a{display:block;color:#a8d5ff;font-size:10px;line-height:1.35;padding:4px 0;text-decoration:none}.topic-detail a:hover{text-decoration:underline}
     .dashboard-method{margin-top:12px}.quotes{display:flex;flex-wrap:wrap;align-items:flex-start}.quotes .card{flex:1 1 340px;min-width:280px;min-height:270px;resize:both;overflow:auto}.quotes .card:first-child{flex:2 1 650px}.quotes .card:before{content:"↘ 拖动右下角可调整卡片宽高";display:block;color:#759ec5;font-size:9px;text-align:right;margin-bottom:5px}.quotes .card.unavailable:before{display:none}@media(max-width:660px){.quotes .card{resize:none;min-width:0}}
@@ -44,11 +44,11 @@
     <section id="strategiesView" class="view"></section>
     <section id="paperView" class="view"></section>
     <section id="reportsView" class="view"></section>
-    <footer class="disclaimer"><b>信号范围</b><p>只使用真实报价、开盘价、1 分钟 OHLC、MACD、指数 ETF 代理与相关新闻标题。它不读取订单簿、持仓、基本面或宏观数据；不会自动下单。</p></footer>
+    <footer class="disclaimer"><b>信号范围</b><p>只使用自选股票 / ETF 的真实报价、开盘价、1 分钟 OHLC、MACD 与相关新闻标题。市场情绪温度只汇总当前自选标的；它不读取订单簿、持仓、基本面或宏观数据，也不会自动下单。</p></footer>
   </main>
   <section id="settings" class="settingsPanel" hidden aria-hidden="true">
-    <form id="settingsForm"><div class="handle"></div><div class="title"><div><h2>真实数据连接</h2><p>密钥只保存在这台设备的浏览器本地存储。</p></div><button type="button" id="closeSettings">关闭</button></div><label>股票代码（逗号分隔）<input name="symbols" placeholder="AAPL, MSFT, NVDA" required></label><label>Finnhub API 密钥<input name="apiKey" type="password" required></label><label>Twelve Data API 密钥（K 线备用，可选）<input name="twelveDataApiKey" type="password" placeholder="Finnhub K 线拒绝时自动使用"></label><div class="twocol"><label>报价更新（秒）<input name="intervalSeconds" type="number" min="15" max="300"></label><label>大波动提醒（%）<input name="largeMovePct" type="number" min="1" max="20" step="0.1"></label></div><p class="fine">K 线使用 1 分钟周期、每 30 秒刷新；优先 Finnhub，失败时改用 Twelve Data。市场温度使用 SPY、QQQ、DIA、IWM 的实时 ETF 代理报价。</p><button class="save" type="submit">保存并开始追踪</button></form>
+    <form id="settingsForm"><div class="handle"></div><div class="title"><div><h2>真实数据连接</h2><p>密钥只保存在这台设备的浏览器本地存储。</p></div><button type="button" id="closeSettings">关闭</button></div><label>股票代码（逗号分隔）<input name="symbols" placeholder="AAPL, MSFT, NVDA" required></label><label>Finnhub API 密钥<input name="apiKey" type="password" required></label><label>Twelve Data API 密钥（K 线备用，可选）<input name="twelveDataApiKey" type="password" placeholder="Finnhub K 线拒绝时自动使用"></label><div class="twocol"><label>报价更新（秒）<input name="intervalSeconds" type="number" min="15" max="300"></label><label>大波动提醒（%）<input name="largeMovePct" type="number" min="1" max="20" step="0.1"></label></div><p class="fine">K 线使用 1 分钟周期、每 30 秒刷新；优先 Finnhub，失败时改用 Twelve Data。市场情绪温度只依据上方自选股票 / ETF 的真实报价、开盘价和涨跌广度计算。</p><button class="save" type="submit">保存并开始追踪</button></form>
   </section>
-  <script src="app.js"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

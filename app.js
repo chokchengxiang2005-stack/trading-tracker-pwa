@@ -68,3 +68,57 @@ document.addEventListener('click',e=>{let b=e.target.closest('[data-topic]');if(
 function renderDashboard(live){$('#marketPulse').innerHTML=live?marketPulse():'';$('#quotes').innerHTML=live?state.settings.symbols.map(card).join(''):'<section class="card unavailable">点击右上角设置并添加真实行情 API 密钥后开始追踪。</section>';renderLower(live)}
 function dailyNewsPanel(live){let stories=allStories().slice(0,12);if(!live)return'<section class="news daily-news"><h2>News <small>每日研究</small></h2><p class="empty">连接数据后显示近 5 天、与自选股票相关的真实新闻。</p></section>';return`<section class="news daily-news"><h2>News <small>每日研究 · 近 5 天 · 公司相关新闻</small></h2>${stories.length?stories.map(v=>`<a class="story" href="${esc(v.url)}" target="_blank" rel="noopener"><span class="tag">${esc(v.symbol)}</span><br>${esc(v.headline)}<br><small>${esc(v.source)} · ${new Date(v.time).toLocaleString()}</small></a>`).join(''):'<p class="empty">正在请求相关真实新闻；没有结果时不会显示替代内容。</p>'}</section>`}
 function renderDaily(live){$('#dailyView').innerHTML=!live?`${empty('每日研究会在连接数据后，按每个股票的真实信号、最新价格、新闻与可用估值指标生成。')}${dailyNewsPanel(false)}`:`<section class="workspace"><div class="workspace-head"><div><h2>每日研究</h2><p>每次刷新均重新读取报价、最多 5 天的公司新闻和可用 P/E、P/B；结论只在所需数据齐全时出现。</p></div><button class="ghost-button" data-refresh>立即刷新</button></div>${state.settings.symbols.map(s=>{let q=state.quotes[s],x=tradeSignal(s,q),m=state.metrics?.[s];return`<div class="research-line"><b>${esc(s)}</b><small>${q?`${money(q.price)} · 当日 ${signed(q.change)} · P/E ${num(m?.pe)} · P/B ${num(m?.pb)}`:esc(state.errors[s]||'等待报价')}</small><strong class="${x.kind==='buy'?'up':x.kind==='sell'?'down':'neutral'}">${esc(x.label)}</strong></div>`}).join('')}</section>${dailyNewsPanel(true)}`}
+
+/* The sentiment value is deliberately a watch-list measure: only symbols
+   selected by the user contribute to it. No ETF or broad-index proxy is used. */
+async function refreshQuotes(){
+  const symbols=[...new Set(state.settings.symbols)];
+  state.proxies={};
+  await Promise.all(symbols.map(async symbol=>{
+    try{
+      const q=await quote(symbol);
+      state.quotes[symbol]=q;
+      delete state.errors[symbol];
+      if(!state.candles[symbol])await refreshChart(symbol);
+      if(!state.news[symbol]||Date.now()-state.news[symbol].at>900000)state.news[symbol]=await news(symbol);
+      if(!state.metrics[symbol]||Date.now()-state.metrics[symbol].at>86400000){
+        try{state.metrics[symbol]=await valuationMetrics(symbol)}catch(error){state.metrics[symbol]={error:error.message,at:Date.now()}}
+      }
+    }catch(error){state.errors[symbol]=error.message||'报价不可用'}
+  }));
+  if(!state.generalNews.at||Date.now()-state.generalNews.at>900000){
+    try{state.generalNews=await marketNews()}catch(error){state.generalNews={items:[],at:Date.now(),error:error.message}}
+  }
+  render();
+}
+function selectedSentiment(){
+  const quotes=state.settings.symbols.map(symbol=>state.quotes[symbol]).filter(q=>Number.isFinite(q?.change));
+  if(!quotes.length)return null;
+  const avg=quotes.reduce((total,q)=>total+q.change,0)/quotes.length;
+  const breadth=quotes.filter(q=>q.change>0).length/quotes.length;
+  const dispersion=quotes.reduce((total,q)=>total+Math.abs(q.change),0)/quotes.length;
+  const opens=quotes.map(q=>Number.isFinite(q.open)&&q.open!==0?(q.price/q.open-1)*100:null).filter(Number.isFinite);
+  const openAvg=opens.length?opens.reduce((total,value)=>total+value,0)/opens.length:null;
+  const score=clamp(Math.round(50+avg*18+(breadth-.5)*30-dispersion*5+(openAvg??0)*8),0,100,50);
+  const label=score>=65?'偏强':score>=55?'略强':score<=35?'偏弱':score<=45?'略弱':'中性';
+  return{score,avg,breadth,dispersion,openAvg,count:quotes.length,label};
+}
+function riskAppetite(){return selectedSentiment()}
+function marketPulse(){
+  const r=selectedSentiment();
+  const selected=state.settings.symbols.map(symbol=>{
+    const q=state.quotes[symbol];
+    return`<span class="proxy"><b>${esc(symbol)} ${q&&Number.isFinite(q.change)?(q.change>=0?'+':'')+pct(q.change):'—'}</b>${q?.time?new Date(q.time).toLocaleTimeString():'等待数据'}</span>`;
+  }).join('');
+  const valued=state.settings.symbols.map(s=>({s,m:state.metrics?.[s]})).filter(x=>Number.isFinite(x.m?.pe)||Number.isFinite(x.m?.pb));
+  return`<article class="pulse-card pulse-main"><div class="pulse-kicker">自选标的情绪温度 · 模型推断</div><div class="temperature"><strong>${r?r.score+'%':'—'}</strong><b class="${r&&r.score>=50?'up':'down'}">${r?.label||'等待自选标的报价'}</b></div><div class="meter"></div><p class="pulse-note">仅根据你当前自选 ${r?.count||0}/${state.settings.symbols.length} 个股票 / ETF 的日内涨跌、上涨广度、波动离散度和相对开盘变化计算。它不是大盘指标、估值或收益预测。</p></article><article class="pulse-card"><h2>自选标的实时变动</h2><div class="proxy-list">${selected}</div><p class="source">来源：Finnhub · 仅显示设置中选择的标的</p></article><article class="pulse-card"><h2>基本面估值可用性</h2>${valued.length?valued.map(x=>`<p class="pulse-note"><b>${esc(x.s)}</b> · P/E TTM ${num(x.m.pe)} · P/B ${num(x.m.pb)}<br><span>源：Finnhub 指标；字段缺失则不显示。</span></p>`).join(''):`<p class="empty">正在请求跟踪标的的 P/E、P/B。若你的 Finnhub 权限不含该数据，模块会保持空白。</p>`}</article>`;
+}
+function renderLower(live){
+  if(!live){$('#sentiment').innerHTML=$('#topics').innerHTML=$('#screener').innerHTML='';return}
+  const r=selectedSentiment();
+  $('#sentiment').innerHTML=`<h2>1. 市场情绪温度</h2><p class="sub">仅汇总当前自选股票 / ETF · 非基本面估值</p>${!r?'<p class="empty">等待当前自选标的的真实报价。</p>':`<div class="gauge"><i class="needle" style="transform:rotate(${(r.score-50)*1.6}deg)"></i></div><div class="gauge-label">${r.score}% · ${r.label}</div><p class="pulse-note">${r.count}/${state.settings.symbols.length} 个自选标的有效 · 平均 ${signed(r.avg)} · 上涨广度 ${(r.breadth*100).toFixed(0)}% · 离散度 ${r.dispersion.toFixed(2)}%${r.openAvg==null?'':' · 相对开盘 '+signed(r.openAvg)}。</p>`}`;
+  const topics=topicRows(),active=state.topic,detail=active?allRadarStories().filter(x=>x.headline.toLowerCase().includes(active.toLowerCase())).slice(0,3):[];
+  $('#topics').innerHTML=`<h2>2. 热点主题雷达</h2><p class="sub">Finnhub 综合新闻 + 自选公司新闻 · 点击主题查看原文</p>${topics.length?topics.map((x,i)=>`<button class="topic-row topic-action" data-topic="${esc(x.name)}"><span class="topic-rank">${String(i+1).padStart(2,'0')}</span><span class="topic-name">${esc(x.name)}<span class="topic-bar"><i style="width:${Math.max(12,x.count/topics[0].count*100)}%"></i></span></span><span class="topic-count">${x.count}</span></button>`).join(''):'<p class="empty">等待 Finnhub 综合新闻或自选标的新闻。</p>'}${detail.length?`<div class="topic-detail">${detail.map(x=>`<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.headline)}</a>`).join('')}</div>`:''}`;
+  const rows=state.settings.symbols.map(s=>({s,x:anomaly(s)})).sort((a,b)=>(b.x.score||-1)-(a.x.score||-1));
+  $('#screener').innerHTML=`<h2>3. AI 异动捕捉榜</h2><p class="sub">下一根 1 分钟 K 线方向倾向 · 可解释模型预测</p>${rows.length?rows.map(x=>`<div class="screen-row"><span class="screen-name"><b>${esc(x.s)}</b><br><span class="screen-note">${esc(x.x.reasons)}</span></span><span class="${x.x.direction==='偏多'?'up':x.x.direction==='偏空'?'down':'neutral'}">${esc(x.x.direction)}</span><span class="screen-score">${x.x.score==null?'—':x.x.score+'%'}</span></div>`).join(''):'<p class="empty">等待真实报价后开始计算。</p>'}<p class="screen-note">预测仅来自页面可验证输入，不包含订单簿、内幕信息或未来新闻，不能保证结果。</p>`;
+}
