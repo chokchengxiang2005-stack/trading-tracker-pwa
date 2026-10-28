@@ -23,7 +23,7 @@ async function twelveCandles(symbol){let u=new URL('https://api.twelvedata.com/t
 function valid(x){return[x.o,x.h,x.l,x.c,x.t].every(Number.isFinite)}
 async function news(symbol){let now=new Date(),from=new Date(Date.now()-432e6),u=new URL('https://finnhub.io/api/v1/company-news');u.searchParams.set('symbol',symbol);u.searchParams.set('from',from.toISOString().slice(0,10));u.searchParams.set('to',now.toISOString().slice(0,10));u.searchParams.set('token',state.settings.apiKey);let r=await fetch(u,{cache:'no-store'});if(!r.ok)throw Error('新闻数据不可用');let x=await r.json();return{items:Array.isArray(x)?x.filter(v=>v.headline&&v.url).slice(0,8).map(v=>({headline:v.headline,url:v.url,source:v.source||'新闻来源',time:v.datetime*1000})):[],at:Date.now()}}
 
-function render(){let live=!!state.settings.apiKey,ready=Object.keys(state.quotes).length,failed=Object.keys(state.errors).length;$('#status').className='status'+(ready?' live':'');$('#status').textContent=!live?'未连接行情数据源 · 不显示虚构行情':ready?`已收到 Finnhub 报价 · 每 ${state.settings.intervalSeconds} 秒更新 · K 线每 30 秒更新`:`数据源已配置，但尚未收到有效报价${failed?'（请检查 API 密钥、权限或网络）':''} · 不显示虚构行情`;renderDashboard(live);renderDaily(live);renderStrategies(live);renderPaper(live);renderReports(live);requestAnimationFrame(()=>{drawAll();bindGestures()})}
+function render(){let live=!!state.settings.apiKey,ready=Object.keys(state.quotes).length,failed=Object.keys(state.errors).length;$('#status').className='status'+(ready?' live':'');$('#status').textContent=!live?'未连接行情数据源 · 不显示虚构行情':ready?`已收到 Finnhub 报价 · 每 ${state.settings.intervalSeconds} 秒更新 · K 线每 30 秒更新`:`数据源已配置，但尚未收到有效报价${failed?'（请检查 API 密钥、权限或网络）':''} · 不显示虚构行情`;renderAlerts(live);renderDashboard(live);renderDaily(live);renderStrategies(live);renderPaper(live);renderReports(live);requestAnimationFrame(()=>{drawAll();bindGestures()})}
 function renderDashboard(live){$('#marketPulse').innerHTML=live?marketPulse():'';$('#quotes').innerHTML=live?state.settings.symbols.map(card).join(''):'<section class="card unavailable">点击右上角设置并添加真实行情 API 密钥后开始追踪。</section>';renderNews(live);renderLower(live)}
 function marketPulse(){let ps=Object.values(state.proxies).filter(x=>Number.isFinite(x.change)),avg=ps.length?ps.reduce((a,x)=>a+x.change,0)/ps.length:null,score=Number.isFinite(avg)?clamp(Math.round(50+avg*16),0,100,50):null,label=score==null?'等待 ETF 代理报价':score>=60?'偏强':score<=40?'偏弱':'中性';let proxies=PROXIES.map(s=>{let q=state.proxies[s];return`<span class="proxy"><b>${s} ${q&&Number.isFinite(q.change)?(q.change>=0?'+':'')+pct(q.change):'—'}</b>${q?.time?new Date(q.time).toLocaleTimeString():'等待数据'}</span>`}).join('');return`<article class="pulse-card pulse-main"><div class="pulse-kicker">市场温度 · 实时 ETF 代理</div><div class="temperature"><strong>${score==null?'—':score+'%'}</strong><b class="${score>=50?'up':'down'}">${label}</b></div><div class="meter"></div><p class="pulse-note">取 SPY、QQQ、DIA、IWM 当日涨跌幅的等权平均；${ps.length}/4 个代理可用。它不是市场预测或收益率。</p></article><article class="pulse-card"><h2>市场代理</h2><div class="proxy-list">${proxies}</div><p class="source">来源：Finnhub · ETF 即时/延迟取决于数据权限</p></article><article class="pulse-card"><h2>研究状态</h2><div class="fact-grid"><span class="fact"><b>${state.settings.symbols.length}</b><span>跟踪标的</span></span><span class="fact"><b>${Object.values(state.candles).filter(Boolean).length}</b><span>可用 1 分钟图</span></span><span class="fact"><b>${allStories().length}</b><span>真实新闻标题</span></span></div><p class="pulse-note">数据不足时，每个模块会保留原因，而不是以样本数据代替。</p></article>`}
 function card(s){let q=state.quotes[s];if(!q)return`<section class="card"><b class="symbol">${esc(s)}</b><p class="source">${esc(state.errors[s]||'等待首个报价…')}</p></section>`;let change=q.change>0?'up':q.change<0?'down':'neutral',signal=tradeSignal(s,q),c=state.candles[s],chart=c?`<canvas class="candle" data-symbol="${esc(s)}"></canvas><div class="macdWrap"><div class="chartHead"><b>MACD (12, 26, 9)</b><span>柱：动能 · 线：MACD / Signal</span></div><canvas class="macd" data-symbol="${esc(s)}"></canvas></div>`:`<div class="unavailable">${esc(state.chartErrors[s]||'正在请求 1 分钟 K 线…')}</div>`;return`<section class="card"><div class="top"><b class="symbol">${esc(s)}</b><span class="source">源：Finnhub<br>${new Date(q.time).toLocaleTimeString()}</span></div><div class="price">${num(q.price)}</div><div class="${change}">${q.change>0?'+':''}${pct(q.change)} 今日变化</div><div class="metrics"><span class="metric">开盘价<b>${num(q.open)}</b></span><span class="metric">日内高 / 低<b>${num(q.high)} / ${num(q.low)}</b></span><span class="metric">K 线源<b>${c?c.source:'—'}</b></span></div><div class="chart"><div class="chartHead"><b>日内 K 线</b><span>1 分钟 · 每 30 秒</span></div><div class="gesture">滚轮缩放；单指横向拖动查看历史</div>${chart}</div><div class="signal ${signal.kind}"><strong>动作信号：${signal.label}</strong>${signal.body}<div class="muted">信号一致度：${signal.confidence}% · 评分 ${signal.score>0?'+':''}${signal.score}</div><div class="muted">依据：开盘与当日变化、短线动量、MACD、相关新闻标题。仅作研究，不自动下单。</div></div></section>`}
@@ -50,7 +50,7 @@ function bindGestures(){document.querySelectorAll('.candle,.macd').forEach(c=>{l
 window.addEventListener('resize',()=>requestAnimationFrame(drawAll));if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');start();
 
 /* Dashboard evidence layer: each displayed value is either fetched, derived from fetched values, or shown as unavailable. */
-state.generalNews={items:[],at:0,error:''};state.metrics={};state.topic='';
+state.generalNews={items:[],at:0,error:''};state.metrics={};state.topic='';state.alerts=[];state.alertKeys=new Set;
 async function marketNews(){let u=new URL('https://finnhub.io/api/v1/news');u.searchParams.set('category','general');u.searchParams.set('token',state.settings.apiKey);let r=await fetch(u,{cache:'no-store'});if(!r.ok)throw Error(`综合新闻请求失败（HTTP ${r.status}）`);let x=await r.json();return{items:Array.isArray(x)?x.filter(v=>v.headline&&v.url).slice(0,50).map(v=>({headline:v.headline,url:v.url,source:v.source||'新闻来源',time:v.datetime*1000,symbol:'综合'})):[],at:Date.now()}}
 async function valuationMetrics(symbol){let u=new URL('https://finnhub.io/api/v1/stock/metric');u.searchParams.set('symbol',symbol);u.searchParams.set('metric','all');u.searchParams.set('token',state.settings.apiKey);let r=await fetch(u,{cache:'no-store'});if(!r.ok)throw Error(`估值指标请求失败（HTTP ${r.status}）`);let x=await r.json(),m=x.metric||{};return{pe:firstMetric(m,['peBasicExclExtraTTM','peTTM','peAnnual']),pb:firstMetric(m,['pbAnnual','pbQuarterly']),marketCap:firstMetric(m,['marketCapitalization']),at:Date.now(),source:'Finnhub'}}
 function firstMetric(m,keys){for(let k of keys)if(Number.isFinite(m[k]))return m[k];return null}
@@ -77,10 +77,12 @@ async function refreshQuotes(){
   await Promise.all(symbols.map(async symbol=>{
     try{
       const q=await quote(symbol);
+      const previous=state.quotes[symbol];
       state.quotes[symbol]=q;
       delete state.errors[symbol];
       if(!state.candles[symbol])await refreshChart(symbol);
       if(!state.news[symbol]||Date.now()-state.news[symbol].at>900000)state.news[symbol]=await news(symbol);
+      recordVolatilityAlert(symbol,q,previous);
       if(!state.metrics[symbol]||Date.now()-state.metrics[symbol].at>86400000){
         try{state.metrics[symbol]=await valuationMetrics(symbol)}catch(error){state.metrics[symbol]={error:error.message,at:Date.now()}}
       }
@@ -90,6 +92,32 @@ async function refreshQuotes(){
     try{state.generalNews=await marketNews()}catch(error){state.generalNews={items:[],at:Date.now(),error:error.message}}
   }
   render();
+}
+function recordVolatilityAlert(symbol,quote,previous){
+  state.alerts??=[];state.alertKeys??=new Set;
+  const threshold=state.settings.largeMovePct;
+  const dayMove=Math.abs(quote.change);
+  const refreshMove=previous&&previous.price?Math.abs((quote.price/previous.price-1)*100):0;
+  const dayCrossed=dayMove>=threshold&&(!previous||Math.abs(previous.change)<threshold);
+  const refreshCrossed=refreshMove>=threshold;
+  if(!dayCrossed&&!refreshCrossed)return;
+  const kind=refreshCrossed?'两次报价间':'日内';
+  const magnitude=refreshCrossed?refreshMove:dayMove;
+  const direction=(refreshCrossed&&previous?quote.price>=previous.price:quote.change>=0)?'上涨':'下跌';
+  const key=`${symbol}:${new Date(quote.time).toISOString().slice(0,10)}:${kind}:${direction}`;
+  if(state.alertKeys.has(key))return;
+  state.alertKeys.add(key);
+  const headline=state.news[symbol]?.items?.[0]?.headline;
+  const reason=headline?`可核验的近期相关新闻标题：${headline}`:'未取得可核验的相关新闻标题；本提醒仅依据真实报价变动，不推断原因。';
+  const alert={symbol,direction,magnitude,kind,reason,time:quote.time};
+  state.alerts.unshift(alert);state.alerts=state.alerts.slice(0,8);
+  if('Notification'in window&&Notification.permission==='granted')new Notification(`${symbol} ${kind}${direction}提醒`,{body:`${magnitude.toFixed(2)}% · ${reason}`});
+}
+function renderAlerts(live){
+  const target=$('#alerts');
+  const alerts=state.alerts||[];
+  if(!live||!alerts.length){target.innerHTML='';return}
+  target.innerHTML=alerts.map(a=>`<article class="market-alert"><b>${esc(a.symbol)} ${esc(a.kind)}${esc(a.direction)} ${a.magnitude.toFixed(2)}%</b><small>${esc(a.reason)} · ${new Date(a.time).toLocaleTimeString()}</small></article>`).join('');
 }
 function selectedSentiment(){
   const quotes=state.settings.symbols.map(symbol=>state.quotes[symbol]).filter(q=>Number.isFinite(q?.change));

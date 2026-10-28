@@ -8,10 +8,11 @@
   <meta name="apple-mobile-web-app-title" content="Trading Tracker">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=7">
+  <link rel="stylesheet" href="styles.css?v=8">
   <style>
     .topic-action{width:100%;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer;font:inherit}.topic-action:hover{background:#10263b}.topic-detail{border-top:1px solid #1b354b;margin-top:7px;padding-top:6px}.topic-detail a{display:block;color:#a8d5ff;font-size:10px;line-height:1.35;padding:4px 0;text-decoration:none}.topic-detail a:hover{text-decoration:underline}
     .dashboard-method{margin-top:12px}.quotes{display:flex;flex-wrap:wrap;align-items:flex-start}.quotes .card{flex:1 1 340px;min-width:280px;min-height:270px;resize:both;overflow:auto}.quotes .card:first-child{flex:2 1 650px}.quotes .card:before{content:"↘ 拖动右下角可调整卡片宽高";display:block;color:#759ec5;font-size:9px;text-align:right;margin-bottom:5px}.quotes .card.unavailable:before{display:none}@media(max-width:660px){.quotes .card{resize:none;min-width:0}}
+    .alert-feed:empty{display:none}.alert-feed{margin:10px 0}.market-alert{border:1px solid #755052;background:#1a1119;border-radius:9px;padding:10px 12px;color:#ffd6dc;font-size:12px;line-height:1.5}.market-alert b{color:#ff8091}.market-alert small{display:block;color:#bdcde0;margin-top:3px}
   </style>
   <title>Trading Tracker · 策略研究终端</title>
 </head>
@@ -33,6 +34,7 @@
       <span class="research-badge">◆ 模拟研究｜非实盘｜不构成投资建议</span>
     </section>
     <section id="status" class="status">未连接行情数据源 · 不显示虚构行情</section>
+    <section id="alerts" class="alert-feed" aria-live="polite"></section>
     <section id="dashboardView" class="view active">
       <section id="marketPulse" class="market-pulse"></section>
       <section class="lower-grid"><section id="sentiment" class="panel"></section><section id="topics" class="panel"></section><section id="screener" class="panel"></section></section>
@@ -49,6 +51,6 @@
   <section id="settings" class="settingsPanel" hidden aria-hidden="true">
     <form id="settingsForm"><div class="handle"></div><div class="title"><div><h2>真实数据连接</h2><p>密钥只保存在这台设备的浏览器本地存储。</p></div><button type="button" id="closeSettings">关闭</button></div><label>股票代码（逗号分隔）<input name="symbols" placeholder="AAPL, MSFT, NVDA" required></label><label>Finnhub API 密钥<input name="apiKey" type="password" required></label><label>Twelve Data API 密钥（K 线备用，可选）<input name="twelveDataApiKey" type="password" placeholder="Finnhub K 线拒绝时自动使用"></label><div class="twocol"><label>报价更新（秒）<input name="intervalSeconds" type="number" min="15" max="300"></label><label>大波动提醒（%）<input name="largeMovePct" type="number" min="1" max="20" step="0.1"></label></div><p class="fine">K 线使用 1 分钟周期、每 30 秒刷新；优先 Finnhub，失败时改用 Twelve Data。市场情绪温度只依据上方自选股票 / ETF 的真实报价、开盘价和涨跌广度计算。</p><button class="save" type="submit">保存并开始追踪</button></form>
   </section>
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>
