@@ -1,28 +1,54 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#061225"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Trading Tracker">
-  <link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07111d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Trading Tracker">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
   <style>
-    .settingsPanel{position:fixed;z-index:20;inset:0;display:flex;align-items:flex-end;width:100%;margin:0;padding:0;background:#000a;color:#edf5ff}
-    .settingsPanel[hidden]{display:none!important}
-    .settingsPanel form{width:min(100%,600px);margin:0 auto}
+    .topic-action{width:100%;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer;font:inherit}.topic-action:hover{background:#10263b}.topic-detail{border-top:1px solid #1b354b;margin-top:7px;padding-top:6px}.topic-detail a{display:block;color:#a8d5ff;font-size:10px;line-height:1.35;padding:4px 0;text-decoration:none}.topic-detail a:hover{text-decoration:underline}
+    .dashboard-method{margin-top:12px}.quotes{display:flex;flex-wrap:wrap;align-items:flex-start}.quotes .card{flex:1 1 340px;min-width:280px;min-height:270px;resize:both;overflow:auto}.quotes .card:first-child{flex:2 1 650px}.quotes .card:before{content:"↘ 拖动右下角可调整卡片宽高";display:block;color:#759ec5;font-size:9px;text-align:right;margin-bottom:5px}.quotes .card.unavailable:before{display:none}@media(max-width:660px){.quotes .card{resize:none;min-width:0}}
   </style>
-  <title>Trading Tracker</title>
+  <title>Trading Tracker · 策略研究终端</title>
 </head>
 <body>
-  <main class="app">
-    <header><div class="brand"><b>↗</b><div><h1>Trading Tracker</h1><p>真实来源优先 · 研究信号</p></div></div><button id="settingsButton" aria-label="设置">⚙</button></header>
-    <section id="status" class="status">未连接行情数据源</section><section id="quotes" class="quotes"></section><section id="news" class="news"></section>
-    <section class="disclaimer"><b>信号范围</b><p>只使用报价、开盘价、1 分钟 OHLC、MACD 与相关新闻标题。它不读取订单簿、持仓、基本面或宏观数据；信号仅供研究，不会自动下单。</p></section>
+  <main class="terminal">
+    <header class="topbar">
+      <button id="homeButton" class="brand" aria-label="返回研究驾驶舱"><span class="brand-mark">⠿</span><span><b>Trading Tracker</b><small>多因子策略研究终端</small></span></button>
+      <nav id="mainNav" aria-label="研究页面">
+        <button class="active" data-view="dashboard">研究驾驶舱</button>
+        <button data-view="daily">每日研究</button>
+        <button data-view="strategies">策略广场</button>
+        <button data-view="paper">模拟交易</button>
+        <button data-view="reports">研究报告</button>
+      </nav>
+      <div class="top-actions"><span class="live-dot">真实数据</span><button id="settingsButton" aria-label="打开数据设置">⚙</button></div>
+    </header>
+    <section class="toolbar">
+      <button class="market-chip" id="marketButton">自定义股票 / ETF</button><span class="market-chip subtle">1 分钟研究</span>
+      <span class="research-badge">◆ 模拟研究｜非实盘｜不构成投资建议</span>
+    </section>
+    <section id="status" class="status">未连接行情数据源 · 不显示虚构行情</section>
+    <section id="dashboardView" class="view active">
+      <section id="marketPulse" class="market-pulse"></section>
+      <section class="lower-grid"><section id="sentiment" class="panel"></section><section id="topics" class="panel"></section><section id="screener" class="panel"></section></section>
+      <section id="quotes" class="quotes"></section>
+      <aside class="method-card dashboard-method"><div class="eyebrow">研究框架</div><h2>多因子信号检查</h2><ol><li><b>价格与开盘</b><span>确认当日方向和变化幅度</span></li><li><b>1 分钟 K 线 / MACD</b><span>确认短线趋势与动能</span></li><li><b>相关新闻</b><span>检查标题的潜在正负面影响</span></li></ol><p>所有评分只代表当前可取得的数据一致度；没有足够数据时将显示“观望”。</p></aside>
+      <button id="openResearchControls" class="research-controls">打开研究控制台</button>
+    </section>
+    <section id="dailyView" class="view"></section>
+    <section id="strategiesView" class="view"></section>
+    <section id="paperView" class="view"></section>
+    <section id="reportsView" class="view"></section>
+    <footer class="disclaimer"><b>信号范围</b><p>只使用真实报价、开盘价、1 分钟 OHLC、MACD、指数 ETF 代理与相关新闻标题。它不读取订单簿、持仓、基本面或宏观数据；不会自动下单。</p></footer>
   </main>
-  <section id="settings" class="settingsPanel" hidden aria-hidden="true"><form id="settingsForm"><div class="handle"></div><div class="title"><div><h2>真实数据连接</h2><p>密钥只存于这台设备的浏览器本地存储。</p></div><button type="button" id="closeSettings">关闭</button></div>
-    <label>股票代码（逗号分隔）<input name="symbols" placeholder="AAPL, MSFT, NVDA" required></label>
-    <label>Finnhub API 密钥<input name="apiKey" type="password" required></label>
-    <label>Twelve Data API 密钥（K 线备用，可选）<input name="twelveDataApiKey" type="password" placeholder="Finnhub K 线拒绝时自动使用"></label>
-    <div class="twocol"><label>报价更新（秒）<input name="intervalSeconds" type="number" min="15" max="300"></label><label>大波动提醒（%）<input name="largeMovePct" type="number" min="1" max="20" step="0.1"></label></div>
-    <p class="fine">K 线使用 1 分钟周期、每 30 秒刷新；优先 Finnhub，失败时改用 Twelve Data。</p><button class="save" type="submit">保存并开始追踪</button>
-  </form></section>
+  <section id="settings" class="settingsPanel" hidden aria-hidden="true">
+    <form id="settingsForm"><div class="handle"></div><div class="title"><div><h2>真实数据连接</h2><p>密钥只保存在这台设备的浏览器本地存储。</p></div><button type="button" id="closeSettings">关闭</button></div><label>股票代码（逗号分隔）<input name="symbols" placeholder="AAPL, MSFT, NVDA" required></label><label>Finnhub API 密钥<input name="apiKey" type="password" required></label><label>Twelve Data API 密钥（K 线备用，可选）<input name="twelveDataApiKey" type="password" placeholder="Finnhub K 线拒绝时自动使用"></label><div class="twocol"><label>报价更新（秒）<input name="intervalSeconds" type="number" min="15" max="300"></label><label>大波动提醒（%）<input name="largeMovePct" type="number" min="1" max="20" step="0.1"></label></div><p class="fine">K 线使用 1 分钟周期、每 30 秒刷新；优先 Finnhub，失败时改用 Twelve Data。市场温度使用 SPY、QQQ、DIA、IWM 的实时 ETF 代理报价。</p><button class="save" type="submit">保存并开始追踪</button></form>
+  </section>
   <script src="app.js"></script>
-</body></html>
+</body>
+</html>
